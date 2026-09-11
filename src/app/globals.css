@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-card: var(--bg-card);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-cream: var(--cream);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-brass: var(--brass);
+  --color-red: var(--red);
+  --color-teal: var(--teal);
+  --font-display: var(--font-oswald);
+  --font-body: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+}
+
+:root {
+  --bg: #141210;
+  --bg-card: #1b1815;
+  --surface: #24201b;
+  --line: #3a342c;
+  --cream: #f2ece1;
+  --muted: #b8ae9c;
+  --muted-2: #7a7266;
+  --brass: #c99a54;
+  --red: #9b3b32;
+  --teal: #35525c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--cream);
+  font-family: var(--font-inter), Inter, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+::selection {
+  background: var(--brass);
+  color: var(--bg);
+}
+
+.ticket {
+  position: relative;
+}
+
+.ticket::before,
+.ticket::after {
+  background: var(--bg);
+  border-radius: 999px;
+  content: "";
+  height: 14px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  z-index: 2;
+}
+
+.ticket::before {
+  left: -8px;
+}
+
+.ticket::after {
+  right: -8px;
+}
+
+.ticket-edge {
+  border-bottom: 1px dashed var(--line);
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}

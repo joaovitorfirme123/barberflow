@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: barberflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Defina POSTGRES_DB no arquivo .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER no arquivo .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - barberflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: barberflow-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HOSTNAME: 0.0.0.0
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      SESSION_SECRET: ${SESSION_SECRET:?Defina SESSION_SECRET no arquivo .env}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      BOOKING_SLOT_INTERVAL_MINUTES: ${BOOKING_SLOT_INTERVAL_MINUTES:-30}
+      BOOKING_MIN_NOTICE_MINUTES: ${BOOKING_MIN_NOTICE_MINUTES:-60}
+      BOOKING_MAX_FUTURE_DAYS: ${BOOKING_MAX_FUTURE_DAYS:-60}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    networks:
+      - barberflow
+
+volumes:
+  postgres_data:
+    name: barberflow-postgres-data
+
+networks:
+  barberflow:
+    name: barberflow-network
