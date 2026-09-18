@@ -1,10 +1,6 @@
-import { PublicBooking } from "@/app/public-booking";
+import { redirect } from "next/navigation";
 
-export default async function PublicBarbershopPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function LegacyPublicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  return <PublicBooking slug={slug} />;
+  redirect(`/${slug}`);
 }

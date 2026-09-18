@@ -25,4 +25,11 @@ describe("date rules", () => {
     expect(formatInTimeZone(date, "America/Sao_Paulo")).toContain("14/01/2026");
     expect(weekdayInTimeZone(date, "America/Sao_Paulo")).toBe(3);
   });
+
+  it("rejects nonexistent and ambiguous local times during DST transitions", () => {
+    expect(() => localDateTimeToUtc("2026-03-08", "02:30", "America/New_York")).toThrow(
+      "não existe",
+    );
+    expect(() => localDateTimeToUtc("2026-11-01", "01:30", "America/New_York")).toThrow("ambíguo");
+  });
 });

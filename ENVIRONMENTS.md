@@ -7,16 +7,16 @@
 - Next.js executado com `npm run dev`.
 - PostgreSQL executado pelo Docker Compose.
 - Variáveis carregadas de `.env`, que não deve ser versionado.
-- Dados podem ser recriados com `docker compose down -v` e `npm run db:deploy`.
+- Dados podem ser recriados com `docker compose down -v`, `docker compose up -d db` e `npm run db:deploy`.
 
-### Preview
+### Preview (requisito de deploy)
 
 - Cada preview deve usar um banco PostgreSQL separado ou um schema isolado.
 - `DATABASE_URL`, `SESSION_SECRET` e demais secrets são fornecidos pelo provedor de deploy.
 - O processo de deploy executa migrations versionadas antes de aceitar tráfego.
 - Dados reais de produção não devem ser copiados para preview.
 
-### Produção
+### Produção (requisito de deploy)
 
 - Aplicação executada como imagem Docker ou serviço Node compatível.
 - PostgreSQL gerenciado, inicialmente compatível com Neon ou equivalente.

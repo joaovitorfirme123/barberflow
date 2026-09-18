@@ -1,5 +1,5 @@
-import { AgendaClient } from "@/app/dashboard/agenda/agenda-client";
+import { redirect } from "next/navigation";
 
-export default function AgendaPage() {
-  return <AgendaClient />;
+export default function LegacyAgendaPage() {
+  redirect("/painel");
 }

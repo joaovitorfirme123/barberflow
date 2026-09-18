@@ -1,11 +1,13 @@
 import { z } from "zod";
 
-import { calculateAvailableSlots, slotEnd } from "@/lib/availability";
-import { addCalendarDays, localDateTimeToUtc, parseCalendarDate } from "@/lib/dates";
+import { lockTenantCalendar, resolveBookableSlot } from "@/lib/booking";
+import { parseCalendarDate } from "@/lib/dates";
 import { errorResponse, HttpError, ok } from "@/lib/http";
 import { idSchema } from "@/lib/id";
 import { normalizePhone, whatsappLink } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
+import { trackProductEvent } from "@/lib/product-events";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   serviceId: idSchema,
@@ -20,82 +22,45 @@ const schema = z.object({
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
+    await enforceRateLimit(request, {
+      scope: `booking:${slug}`,
+      limit: 20,
+      windowMs: 10 * 60_000,
+    });
     const input = schema.parse(await request.json());
     parseCalendarDate(input.date);
     const phone = normalizePhone(input.customerPhone);
+    await enforceRateLimit(request, {
+      scope: `booking-phone:${slug}`,
+      limit: 5,
+      windowMs: 10 * 60_000,
+      identity: phone,
+    });
+    const idempotencyKey = request.headers.get("idempotency-key")?.trim();
+    if (!idempotencyKey || idempotencyKey.length < 8 || idempotencyKey.length > 100) {
+      throw new HttpError(400, "Identificador da tentativa de agendamento inválido.");
+    }
 
     const barbershop = await prisma.barbershop.findUnique({ where: { slug } });
     if (!barbershop) throw new HttpError(404, "Barbearia não encontrada.");
 
-    const [service, professional] = await Promise.all([
-      prisma.service.findFirst({
-        where: {
-          id: input.serviceId,
-          barbershopId: barbershop.id,
-          active: true,
-          professionals: { some: { professionalId: input.professionalId } },
-        },
-      }),
-      prisma.professional.findFirst({
-        where: { id: input.professionalId, barbershopId: barbershop.id, active: true },
-      }),
-    ]);
-    if (!service || !professional)
-      throw new HttpError(400, "Serviço ou profissional indisponível.");
-
-    const dayStart = localDateTimeToUtc(input.date, "00:00", barbershop.timezone);
-    const dayEnd = localDateTimeToUtc(addCalendarDays(input.date, 1), "00:00", barbershop.timezone);
-    const businessHour = await prisma.businessHour.findUnique({
-      where: {
-        barbershopId_weekday: {
-          barbershopId: barbershop.id,
-          weekday: new Date(`${input.date}T12:00:00Z`).getUTCDay(),
-        },
-      },
-    });
-    const [appointments, blocks] = await Promise.all([
-      prisma.appointment.findMany({
-        where: {
-          barbershopId: barbershop.id,
-          professionalId: professional.id,
-          startsAt: { lt: dayEnd },
-          endsAt: { gt: dayStart },
-          status: { in: ["SCHEDULED", "CONFIRMED"] },
-        },
-        select: { startsAt: true, endsAt: true },
-      }),
-      prisma.scheduleBlock.findMany({
-        where: {
-          barbershopId: barbershop.id,
-          OR: [{ professionalId: null }, { professionalId: professional.id }],
-          startsAt: { lt: dayEnd },
-          endsAt: { gt: dayStart },
-        },
-        select: { startsAt: true, endsAt: true },
-      }),
-    ]);
-
-    const slots = calculateAvailableSlots({
-      date: input.date,
-      timeZone: barbershop.timezone,
-      businessHour: businessHour ?? undefined,
-      durationMinutes: service.durationMinutes,
-      slotIntervalMinutes: barbershop.slotIntervalMinutes,
-      minBookingNoticeMinutes: barbershop.minBookingNoticeMinutes,
-      maxBookingDays: barbershop.maxBookingDays,
-      appointments,
-      blocks,
-    });
-    const startsAt = localDateTimeToUtc(input.date, input.time, barbershop.timezone);
-    const startIso = startsAt.toISOString();
-    if (!slots.includes(startIso))
-      throw new HttpError(409, "Esse horário não está mais disponível.");
-    const endsAt = slotEnd(startsAt, service.durationMinutes);
-
     const appointment = await prisma.$transaction(async (tx) => {
+      await lockTenantCalendar(tx, barbershop.id);
+      const existing = await tx.appointment.findUnique({
+        where: {
+          barbershopId_idempotencyKey: { barbershopId: barbershop.id, idempotencyKey },
+        },
+        include: { service: true, professional: true, customer: true },
+      });
+      if (existing) return existing;
+      const { service, professional, startsAt, endsAt } = await resolveBookableSlot(
+        tx,
+        barbershop,
+        input,
+      );
       const customer = await tx.customer.upsert({
         where: { barbershopId_phone: { barbershopId: barbershop.id, phone } },
-        update: { name: input.customerName },
+        update: {},
         create: { barbershopId: barbershop.id, name: input.customerName, phone },
       });
 
@@ -108,14 +73,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
           startsAt,
           endsAt,
           notes: input.notes,
+          idempotencyKey,
         },
         include: { service: true, professional: true, customer: true },
       });
     });
+    await trackProductEvent("BOOKING_COMPLETED", barbershop.id, {
+      serviceId: appointment.serviceId,
+      professionalId: appointment.professionalId,
+    });
 
     const message = [
-      `Olá, ${appointment.customer.name}!`,
-      `Seu horário na ${barbershop.name} foi agendado.`,
+      `Olá! Sou ${input.customerName}.`,
+      `Acabei de agendar um horário na ${barbershop.name}.`,
       `Serviço: ${appointment.service.name}`,
       `Profissional: ${appointment.professional.name}`,
       `Data: ${input.date} às ${input.time}`,
@@ -132,7 +102,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
           customer: appointment.customer.name,
           status: appointment.status,
         },
-        whatsappUrl: whatsappLink(phone, message),
+        whatsappUrl: barbershop.phone ? whatsappLink(barbershop.phone, message) : undefined,
       },
       { status: 201 },
     );

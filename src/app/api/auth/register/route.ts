@@ -2,11 +2,13 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 import { setSessionCookie } from "@/lib/auth";
-import { errorResponse, HttpError, ok } from "@/lib/http";
+import { errorResponse, ok } from "@/lib/http";
 import { normalizePhone } from "@/lib/phone";
 import { normalizeSlug } from "@/lib/slug";
 import { prisma } from "@/lib/prisma";
 import { assertValidTimeZone } from "@/lib/dates";
+import { trackProductEvent } from "@/lib/product-events";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   ownerName: z.string().trim().min(2).max(100),
@@ -20,6 +22,7 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
+    await enforceRateLimit(request, { scope: "auth:register", limit: 5, windowMs: 60 * 60_000 });
     const input = schema.parse(await request.json());
     const slug = normalizeSlug(input.slug);
     assertValidTimeZone(input.timezone);
@@ -57,6 +60,7 @@ export async function POST(request: Request) {
 
       return { ...barbershop.users[0], barbershopId: barbershop.id };
     });
+    await trackProductEvent("BARBERSHOP_CREATED", user.barbershopId);
 
     const response = ok(
       {
@@ -68,10 +72,6 @@ export async function POST(request: Request) {
     await setSessionCookie(response, user);
     return response;
   } catch (error) {
-    if (error instanceof Error && error.message === "Telefone inválido") {
-      return errorResponse(new HttpError(400, error.message));
-    }
-
     return errorResponse(error);
   }
 }

@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-import { errorResponse, HttpError, ok } from "@/lib/http";
+import { assertSameOrigin, errorResponse, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { requireManager } from "@/lib/tenant";
+import { refreshOnboardingStatus } from "@/lib/product-events";
 
 const serviceSchema = z.object({
   name: z.string().trim().min(2).max(100).optional(),
@@ -14,6 +15,7 @@ const serviceSchema = z.object({
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    assertSameOrigin(request);
     const user = await requireManager();
     const { id } = await params;
     const input = serviceSchema.parse(await request.json());
@@ -22,14 +24,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       data: input,
     });
     if (!service.count) throw new HttpError(404, "Serviço não encontrado.");
+    await refreshOnboardingStatus(user.barbershopId);
     return ok({ success: true });
   } catch (error) {
     return errorResponse(error);
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    assertSameOrigin(request);
     const user = await requireManager();
     const { id } = await params;
     const service = await prisma.service.updateMany({

@@ -11,6 +11,15 @@ export class HttpError extends Error {
   }
 }
 
+export function assertSameOrigin(request: Request) {
+  const origin = request.headers.get("origin");
+  if (!origin) return;
+  const expectedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (!expectedHost || new URL(origin).host !== expectedHost) {
+    throw new HttpError(403, "Origem da requisição não permitida.");
+  }
+}
+
 export function errorResponse(error: unknown) {
   if (error instanceof HttpError) {
     return NextResponse.json({ error: error.message }, { status: error.status });
@@ -21,6 +30,10 @@ export function errorResponse(error: unknown) {
       { error: "Confira os dados enviados.", details: error.issues },
       { status: 400 },
     );
+  }
+
+  if (error instanceof SyntaxError) {
+    return NextResponse.json({ error: "O corpo da requisição é inválido." }, { status: 400 });
   }
 
   if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {

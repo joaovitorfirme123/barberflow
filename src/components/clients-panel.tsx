@@ -20,6 +20,7 @@ export function ClientsPanel({ tenant }: { tenant: PanelTenant }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [customers, setCustomers] = useState<ApiCustomer[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     fetch("/api/customers")
       .then(async (response) => {
@@ -32,7 +33,8 @@ export function ClientsPanel({ tenant }: { tenant: PanelTenant }) {
         setError(
           requestError instanceof Error ? requestError.message : "Erro ao carregar clientes.",
         );
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const clients = useMemo(
@@ -52,7 +54,7 @@ export function ClientsPanel({ tenant }: { tenant: PanelTenant }) {
           <p className="font-mono text-[10px] uppercase tracking-[.25em] text-brass">
             Database / {String(clients.length).padStart(2, "0")}
           </p>
-          <h1 className="mt-2 font-display text-4xl uppercase">Histórico</h1>
+          <h2 className="mt-2 font-display text-4xl uppercase">Histórico</h2>
         </div>
         <span className="font-mono text-xs text-muted-2">{customers.length} clientes</span>
       </div>
@@ -66,11 +68,27 @@ export function ClientsPanel({ tenant }: { tenant: PanelTenant }) {
         />
       </label>
       {error && (
-        <p className="mt-4 border border-red/40 bg-red/10 px-4 py-3 text-sm text-[#e3a29b]">
+        <p
+          role="alert"
+          className="mt-4 border border-red/40 bg-red/10 px-4 py-3 text-sm text-[#e3a29b]"
+        >
           {error}
         </p>
       )}
       <div className="mt-5 divide-y divide-line border-y border-line">
+        {loading && <p className="py-10 text-center text-sm text-muted">Carregando clientes...</p>}
+        {!loading && !clients.length && (
+          <div className="py-10 text-center">
+            <p className="font-display text-xl uppercase">
+              {query ? "Nenhum cliente encontrado" : "Nenhum cliente ainda"}
+            </p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+              {query
+                ? "Revise a busca ou limpe o campo para ver todos."
+                : "Os clientes aparecerão aqui após o primeiro agendamento."}
+            </p>
+          </div>
+        )}
         {clients.map((client) => (
           <article key={client.id}>
             <button
@@ -92,8 +110,8 @@ export function ClientsPanel({ tenant }: { tenant: PanelTenant }) {
                   ) : null}
                 </div>
                 <p className="mt-1 font-mono text-[10px] text-muted-2">
-                  {client._count.appointments} visitas <span className="px-1 text-line">/</span>{" "}
-                  última:{" "}
+                  {client._count.appointments} atendimentos concluídos{" "}
+                  <span className="px-1 text-line">/</span> última:{" "}
                   {client.appointments[0]
                     ? formatDate(client.appointments[0].startsAt, tenant.timezone)
                     : "ainda não"}

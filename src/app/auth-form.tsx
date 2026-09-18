@@ -110,7 +110,10 @@ export function AuthForm({ mode }: AuthFormProps) {
                 : "Acesse o painel da sua barbearia pelo workspace correto."}
             </p>
             {error && (
-              <p className="mt-5 border border-red/40 bg-red/10 px-4 py-3 text-sm leading-5 text-[#e3a29b]">
+              <p
+                role="alert"
+                className="mt-5 border border-red/40 bg-red/10 px-4 py-3 text-sm leading-5 text-[#e3a29b]"
+              >
                 {error}
               </p>
             )}
@@ -120,6 +123,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   <Field label="Seu nome" htmlFor="ownerName">
                     <input
                       id="ownerName"
+                      autoComplete="name"
                       required
                       value={form.ownerName}
                       onChange={(event) => update("ownerName", event.target.value)}
@@ -129,6 +133,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   <Field label="Nome da barbearia" htmlFor="barbershopName">
                     <input
                       id="barbershopName"
+                      autoComplete="organization"
                       required
                       value={form.barbershopName}
                       onChange={(event) => update("barbershopName", event.target.value)}
@@ -148,7 +153,9 @@ export function AuthForm({ mode }: AuthFormProps) {
                   <Field label="WhatsApp" htmlFor="phone" hint="Opcional">
                     <input
                       id="phone"
+                      type="tel"
                       inputMode="tel"
+                      autoComplete="tel"
                       value={form.phone}
                       onChange={(event) => update("phone", event.target.value)}
                       className={inputClass}
@@ -172,6 +179,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 <input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   required
                   value={form.email}
                   onChange={(event) => update("email", event.target.value)}
@@ -182,6 +190,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 <input
                   id="password"
                   type="password"
+                  autoComplete={isRegister ? "new-password" : "current-password"}
                   minLength={8}
                   required
                   value={form.password}
@@ -189,6 +198,9 @@ export function AuthForm({ mode }: AuthFormProps) {
                   className={inputClass}
                 />
               </Field>
+              {isRegister && (
+                <p className="-mt-2 text-xs text-muted">Use pelo menos 8 caracteres.</p>
+              )}
               <button
                 className="flex w-full items-center justify-between rounded-xl bg-red px-5 py-3.5 font-display text-sm uppercase tracking-wider text-cream transition hover:bg-red/80 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={loading}

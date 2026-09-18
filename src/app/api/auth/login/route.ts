@@ -5,6 +5,7 @@ import { setSessionCookie } from "@/lib/auth";
 import { errorResponse, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug } from "@/lib/slug";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -15,6 +16,12 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const input = schema.parse(await request.json());
+    await enforceRateLimit(request, {
+      scope: "auth:login",
+      limit: 10,
+      windowMs: 15 * 60_000,
+      identity: `${input.email}:${input.slug}`,
+    });
     const user = await prisma.user.findFirst({
       where: {
         email: input.email,

@@ -6,7 +6,13 @@ export async function getPublicBarbershop(slug: string): Promise<PublicBarbersho
   const barbershop = await prisma.barbershop.findUnique({
     where: { slug },
     include: {
-      services: { where: { active: true }, orderBy: { name: "asc" } },
+      services: {
+        where: {
+          active: true,
+          professionals: { some: { professional: { active: true } } },
+        },
+        orderBy: { name: "asc" },
+      },
       professionals: {
         where: { active: true },
         include: { services: { include: { service: true } } },

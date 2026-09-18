@@ -6,6 +6,7 @@ import {
   timeToMinutes,
   weekdayInTimeZone,
 } from "./dates";
+import { HttpError } from "./http";
 
 type BusinessHour = {
   weekday: number;
@@ -27,6 +28,7 @@ export type AvailabilityInput = {
   businessHour?: BusinessHour;
   durationMinutes: number;
   slotIntervalMinutes: number;
+  slotMode?: "FIXED" | "FLEXIBLE";
   minBookingNoticeMinutes: number;
   maxBookingDays: number;
   appointments: BusyInterval[];
@@ -52,7 +54,7 @@ export function validateBookingDate(
   const maximumDate = parseCalendarDate(addCalendarDays(today, maxBookingDays)).getTime();
 
   if (requestedDate < minimumDate || requestedDate > maximumDate) {
-    throw new Error("Data fora do período disponível para agendamento");
+    throw new HttpError(400, "Data fora do período disponível para agendamento");
   }
 
   return new Date(now.getTime() + minBookingNoticeMinutes * 60_000);
@@ -65,6 +67,7 @@ export function calculateAvailableSlots(input: AvailabilityInput) {
     businessHour,
     durationMinutes,
     slotIntervalMinutes,
+    slotMode = "FIXED",
     minBookingNoticeMinutes,
     maxBookingDays,
     appointments,
@@ -92,24 +95,34 @@ export function calculateAvailableSlots(input: AvailabilityInput) {
   const breakEnd = businessHour.breakEnd
     ? localDateTimeToUtc(date, businessHour.breakEnd, timeZone)
     : null;
-  const slots: string[] = [];
+  const candidateStarts = new Set<number>();
   const slotStart = new Date(openAt);
   const duration = durationMinutes * 60_000;
 
   while (slotStart.getTime() + duration <= closeAt.getTime()) {
-    const slotEnd = new Date(slotStart.getTime() + duration);
-    const inBreak = breakStart && breakEnd && slotStart < breakEnd && slotEnd > breakStart;
-    const busy = appointments.some((appointment) => overlaps(slotStart, slotEnd, appointment));
-    const blocked = blocks.some((block) => overlaps(slotStart, slotEnd, block));
-
-    if (!inBreak && !busy && !blocked && slotStart >= minimumStart) {
-      slots.push(slotStart.toISOString());
-    }
-
+    candidateStarts.add(slotStart.getTime());
     slotStart.setUTCMinutes(slotStart.getUTCMinutes() + slotIntervalMinutes);
   }
 
-  return slots;
+  if (slotMode === "FLEXIBLE") {
+    for (const interval of [...appointments, ...blocks]) {
+      candidateStarts.add(interval.endsAt.getTime());
+    }
+  }
+
+  return [...candidateStarts]
+    .sort((first, second) => first - second)
+    .map((candidate) => new Date(candidate))
+    .filter((candidate) => candidate.getTime() + duration <= closeAt.getTime())
+    .filter((candidate) => candidate >= openAt && candidate >= minimumStart)
+    .filter((candidate) => {
+      const end = new Date(candidate.getTime() + duration);
+      const inBreak = breakStart && breakEnd && candidate < breakEnd && end > breakStart;
+      const busy = appointments.some((appointment) => overlaps(candidate, end, appointment));
+      const blocked = blocks.some((block) => overlaps(candidate, end, block));
+      return !inBreak && !busy && !blocked;
+    })
+    .map((candidate) => candidate.toISOString());
 }
 
 export function slotEnd(start: Date, durationMinutes: number) {
@@ -118,6 +131,6 @@ export function slotEnd(start: Date, durationMinutes: number) {
 
 export function validateTimeRange(startTime: string, endTime: string) {
   if (timeToMinutes(endTime) <= timeToMinutes(startTime)) {
-    throw new Error("O horário final deve ser depois do inicial");
+    throw new HttpError(400, "O horário final deve ser depois do inicial");
   }
 }

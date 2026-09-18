@@ -1,7 +1,8 @@
 import { z } from "zod";
 
+import { lockTenantCalendar, resolveBookableSlot } from "@/lib/booking";
 import { addCalendarDays, calendarDateInTimeZone, localDateTimeToUtc } from "@/lib/dates";
-import { errorResponse, HttpError, ok } from "@/lib/http";
+import { assertSameOrigin, errorResponse, HttpError, ok } from "@/lib/http";
 import { idSchema } from "@/lib/id";
 import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
@@ -65,28 +66,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    assertSameOrigin(request);
     const user = await requireManager();
     const input = manualSchema.parse(await request.json());
     const phone = normalizePhone(input.customerPhone);
-    const [service, professional] = await Promise.all([
-      prisma.service.findFirst({
-        where: {
-          id: input.serviceId,
-          barbershopId: user.barbershopId,
-          active: true,
-          professionals: { some: { professionalId: input.professionalId } },
-        },
-      }),
-      prisma.professional.findFirst({
-        where: { id: input.professionalId, barbershopId: user.barbershopId, active: true },
-      }),
-    ]);
-    if (!service || !professional)
-      throw new HttpError(400, "Serviço ou profissional indisponível.");
-
-    const startsAt = localDateTimeToUtc(input.date, input.time, user.barbershop.timezone);
-    const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
     const appointment = await prisma.$transaction(async (tx) => {
+      await lockTenantCalendar(tx, user.barbershopId);
+      const { service, professional, startsAt, endsAt } = await resolveBookableSlot(
+        tx,
+        user.barbershop,
+        input,
+      );
       const customer = await tx.customer.upsert({
         where: { barbershopId_phone: { barbershopId: user.barbershopId, phone } },
         update: { name: input.customerName },

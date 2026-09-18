@@ -1,11 +1,12 @@
 import { z } from "zod";
 
-import { errorResponse, ok } from "@/lib/http";
+import { assertSameOrigin, errorResponse, ok } from "@/lib/http";
 import { normalizePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { normalizeSlug } from "@/lib/slug";
 import { requireManager, requireUser } from "@/lib/tenant";
 import { assertValidTimeZone } from "@/lib/dates";
+import { refreshOnboardingStatus } from "@/lib/product-events";
 
 const updateSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
@@ -18,6 +19,7 @@ const updateSchema = z.object({
   minBookingNoticeMinutes: z.number().int().min(0).max(10080).optional(),
   maxBookingDays: z.number().int().min(1).max(365).optional(),
   slotIntervalMinutes: z.number().int().min(5).max(120).optional(),
+  slotMode: z.enum(["FIXED", "FLEXIBLE"]).optional(),
 });
 
 export async function GET() {
@@ -31,6 +33,7 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
+    assertSameOrigin(request);
     const user = await requireManager();
     const input = updateSchema.parse(await request.json());
     const data: Record<string, unknown> = { ...input };
@@ -43,6 +46,7 @@ export async function PATCH(request: Request) {
       where: { id: user.barbershopId },
       data,
     });
+    await refreshOnboardingStatus(user.barbershopId);
 
     return ok({ barbershop });
   } catch (error) {

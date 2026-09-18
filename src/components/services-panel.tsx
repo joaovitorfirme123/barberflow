@@ -149,7 +149,10 @@ export function ServicesPanel({ tenant }: { tenant: PanelTenant }) {
         </button>
       </div>
       {error && (
-        <p className="mt-5 border border-red/40 bg-red/10 px-4 py-3 text-sm text-[#e3a29b]">
+        <p
+          role="alert"
+          className="mt-5 border border-red/40 bg-red/10 px-4 py-3 text-sm text-[#e3a29b]"
+        >
           {error}
         </p>
       )}
@@ -185,7 +188,11 @@ export function ServicesPanel({ tenant }: { tenant: PanelTenant }) {
                       <span
                         className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase ${service.active ? "bg-teal/30 text-[#9fc1ca]" : "bg-line text-muted-2"}`}
                       >
-                        {service.active ? "publicado" : "inativo"}
+                        {service.active && service.professionals.length
+                          ? "agendável"
+                          : service.active
+                            ? "sem profissional"
+                            : "inativo"}
                       </span>
                     </div>
                     <p className="mt-1 text-sm leading-5 text-muted">
@@ -204,14 +211,14 @@ export function ServicesPanel({ tenant }: { tenant: PanelTenant }) {
                       <button
                         aria-label={`Editar ${service.name}`}
                         onClick={() => startEdit(service)}
-                        className="text-muted-2 hover:text-brass"
+                        className="flex h-11 w-11 items-center justify-center text-muted-2 hover:text-brass"
                       >
                         <Edit3 size={16} />
                       </button>
                       <button
                         aria-label={`${service.active ? "Desativar" : "Ativar"} ${service.name}`}
                         onClick={() => toggle(service)}
-                        className="text-muted-2 hover:text-brass"
+                        className="flex h-11 w-11 items-center justify-center text-muted-2 hover:text-brass"
                       >
                         {service.active ? <X size={17} /> : <Check size={17} />}
                       </button>
@@ -223,9 +230,20 @@ export function ServicesPanel({ tenant }: { tenant: PanelTenant }) {
           </div>
         ))}
         {!services.length && (
-          <p className="border-y border-line py-10 text-center text-sm text-muted">
-            Nenhum serviço cadastrado.
-          </p>
+          <div className="border-y border-line py-10 text-center">
+            <p className="font-display text-xl uppercase">Nenhum serviço cadastrado</p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+              Cadastre o que sua barbearia oferece e depois associe um profissional para publicar
+              horários.
+            </p>
+            <button
+              disabled={!tenant.canManage}
+              onClick={startNew}
+              className="mt-4 min-h-11 bg-brass px-4 font-display text-xs uppercase text-bg"
+            >
+              Adicionar primeiro serviço
+            </button>
+          </div>
         )}
       </div>
     </PanelFrame>

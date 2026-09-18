@@ -1,9 +1,10 @@
-import { errorResponse, HttpError, ok } from "@/lib/http";
+import { assertSameOrigin, errorResponse, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { requireManager } from "@/lib/tenant";
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    assertSameOrigin(request);
     const user = await requireManager();
     const { id } = await params;
     const result = await prisma.scheduleBlock.deleteMany({

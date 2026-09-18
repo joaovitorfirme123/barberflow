@@ -2,11 +2,11 @@
 
 ## SaaS de Agendamento para Barbearias
 
-**Última revisão:** 11/09/2026
+**Última revisão:** 18/09/2026
 
 **Objetivo:** transformar o protótipo atual em um SaaS simples, confiável, validável e posteriormente comercializável para barbearias pequenas e médias.
 
-**Legenda:** `[x]` concluído e validado · `[ ]` pendente
+**Legenda:** `[x]` implementado · `[v]` validado com usuários reais · `[~]` parcial · `[ ]` pendente
 
 ## 1. Visão do produto
 
@@ -297,7 +297,7 @@ O WhatsApp deve ser um complemento de comunicação. O banco de dados da platafo
 
 ### 5.10 Qualidade mínima
 
-- [x] layout responsivo;
+- [~] layout responsivo; validação visual em 320, 375, 390, 430, 768, 1024 e 1440 px pendente;
 - [x] estados de loading;
 - [x] empty states;
 - [x] mensagens de erro compreensíveis;
@@ -305,7 +305,7 @@ O WhatsApp deve ser um complemento de comunicação. O banco de dados da platafo
 - [x] acessibilidade básica;
 - [x] testes do cálculo de disponibilidade;
 - [x] testes contra double booking;
-- [x] teste completo do fluxo público.
+- [ ] teste E2E completo do fluxo público em navegador.
 
 ### Critério de conclusão do MVP
 
@@ -319,7 +319,66 @@ O MVP estará pronto para testadores quando uma barbearia conseguir:
 - [x] receber um agendamento;
 - [x] visualizar o agendamento no painel;
 - [x] concluir ou cancelar o atendimento;
-- [x] fazer tudo isso sem intervenção manual do desenvolvedor.
+- [~] fazer tudo isso sem intervenção manual do desenvolvedor; implementação concluída, validação com barbearias pendente.
+
+## 5.11 Fase 1.5 — Consolidação e prontidão para piloto
+
+**Objetivo:** remover divergências entre protótipo e produto canônico, proteger a agenda sob concorrência e permitir ativação sem URLs ocultas.
+
+### Produto e onboarding
+
+- [x] definir `/painel` como painel canônico;
+- [x] redirecionar rotas administrativas e públicas legadas;
+- [x] remover componentes legados sem uso;
+- [x] adicionar checklist de ativação no painel;
+- [x] cadastrar e editar profissionais no painel canônico;
+- [x] associar profissionais aos serviços;
+- [x] associar automaticamente novos serviços ao único profissional ativo;
+- [x] editar funcionamento, pausas e dias fechados;
+- [x] editar dados e regras de agendamento da barbearia;
+- [x] copiar e abrir o link público;
+- [x] oferecer logout descobrível;
+- [x] registrar conclusão do onboarding;
+- [ ] validar onboarding com pelo menos cinco barbearias reais.
+
+### Operação da agenda
+
+- [x] navegar entre datas;
+- [x] criar agendamento manual usando os mesmos slots válidos do fluxo público;
+- [x] definir transições válidas de status;
+- [x] exibir ações explícitas para confirmar, concluir, cancelar e registrar no-show;
+- [x] criar bloqueio global ou por profissional no timezone da barbearia;
+- [x] oferecer modo de slots flexível, liberando o fim real de atendimentos e bloqueios;
+- [x] impedir bloqueio sobre atendimento ativo;
+- [x] serializar bloqueios e agendamentos concorrentes com lock transacional;
+- [x] manter exclusion constraint no PostgreSQL contra overlap de agendamentos.
+
+### Fluxo público
+
+- [x] publicar somente serviços associados a profissionais ativos;
+- [x] adicionar loading e retry de disponibilidade sem slots antigos;
+- [x] adicionar labels, seleção semântica e revisão antes da confirmação;
+- [x] remover seguidores, verificação, senha e lembrete fictícios;
+- [x] direcionar a mensagem manual de WhatsApp para a barbearia;
+- [x] adicionar idempotência à criação pública;
+- [x] adicionar páginas de loading, erro e não encontrado;
+- [x] adicionar metadata por barbearia;
+- [~] validar acessibilidade e responsividade com navegador e tecnologia assistiva.
+
+### Segurança, dados e validação
+
+- [x] rate limiting compartilhado via PostgreSQL em login, cadastro, disponibilidade e booking;
+- [x] validar origem em mutações autenticadas;
+- [x] impedir alteração pública do nome canônico de cliente existente;
+- [x] rejeitar horário local inexistente ou ambíguo por DST;
+- [x] retornar erros 4xx para validações esperadas;
+- [x] reservar slugs usados pela aplicação;
+- [x] adicionar eventos de criação, onboarding, visualização, booking, conclusão e no-show;
+- [x] adicionar teste PostgreSQL de overlap, corrida bloqueio/agendamento e rate limiting;
+- [x] documentar operação, backup, restauração, incidente e retenção do piloto;
+- [x] adicionar avisos iniciais de privacidade e termos do piloto;
+- [ ] revisar juridicamente privacidade e termos antes de cobrar;
+- [ ] configurar backup, monitoramento e teste de restauração no provedor real.
 
 ## 6. Fase 2 — Validação com usuários reais
 
@@ -397,13 +456,14 @@ Não transformar o MVP em ERP financeiro completo.
 
 ### 7.4 Notificações
 
-- [ ] estruturar camada de notificações independente do provedor;
+- [~] estruturar camada de notificações independente do provedor;
 - [ ] confirmação de agendamento;
-- [ ] lembrete antes do atendimento;
+- [x] lembrete Web Push 10 minutos antes do atendimento;
+- [x] PWA instalável com Service Worker e tela offline segura;
 - [ ] aviso de cancelamento;
 - [ ] avaliar WhatsApp Business Platform oficial;
 - [ ] avaliar e-mail como fallback;
-- [ ] registrar status de envio.
+- [x] registrar status de envio do lembrete e evitar duplicidade.
 
 ### 7.5 Planos e cobrança
 
@@ -442,7 +502,7 @@ Não transformar o MVP em ERP financeiro completo.
 
 Priorizar de acordo com dados das Fases 2 e 3.
 
-- [ ] lembrete automático;
+- [x] lembrete automático via Web Push;
 - [ ] confirmação automática;
 - [ ] lista de clientes;
 - [ ] busca de clientes;
@@ -644,27 +704,22 @@ Diferenciais validados
 
 ### Prioridade P0
 
-- decidir arquitetura final do backend;
-- definir autenticação;
-- modelar banco multi-tenant;
-- implementar barbearias;
-- implementar serviços;
-- implementar profissionais;
-- implementar horários de funcionamento;
-- implementar motor de disponibilidade;
-- garantir proteção contra double booking;
-- implementar criação de agendamento;
-- conectar o frontend já prototipado.
+- executar teste visual e funcional em 320–1440 px;
+- adicionar E2E de cadastro até primeiro agendamento;
+- validar onboarding assistido com cinco barbearias;
+- configurar error tracking e monitoramento de `/api/health`;
+- configurar backup automático e executar restauração documentada;
+- revisar termos e privacidade antes de coletar dados reais fora do piloto controlado.
 
 ### Prioridade P1
 
-- agenda diária/semanal;
-- bloqueios e folgas;
-- status do atendimento;
-- clientes e histórico;
-- fluxo WhatsApp;
-- testes automatizados do domínio da agenda;
-- analytics básico.
+- recuperação e gestão de conta;
+- cancelamento e reagendamento seguros;
+- histórico de status e auditoria;
+- snapshots de nome, preço e duração no agendamento;
+- integridade multi-tenant por constraints compostas no banco;
+- CI/CD com migrations e rollback documentados;
+- paginação de clientes e histórico.
 
 ### Prioridade P2
 

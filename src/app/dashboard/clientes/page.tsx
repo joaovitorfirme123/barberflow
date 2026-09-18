@@ -1,5 +1,5 @@
-import { CustomersClient } from "@/app/dashboard/clientes/customers-client";
+import { redirect } from "next/navigation";
 
-export default function CustomersPage() {
-  return <CustomersClient />;
+export default function LegacyCustomersPage() {
+  redirect("/painel/clientes");
 }

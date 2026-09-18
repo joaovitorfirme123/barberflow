@@ -1,6 +1,14 @@
 "use client";
 
-import { CalendarDays, ChevronRight, Clock3, Scissors, UsersRound } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronRight,
+  Clock3,
+  Settings,
+  Scissors,
+  UserRoundCog,
+  UsersRound,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,7 +16,9 @@ const items = [
   { href: "/painel", label: "Agenda", icon: CalendarDays },
   { href: "/painel/clientes", label: "Clientes", icon: UsersRound },
   { href: "/painel/servicos", label: "Serviços", icon: Scissors },
+  { href: "/painel/profissionais", label: "Profissionais", icon: UserRoundCog },
   { href: "/painel/horarios", label: "Horários", icon: Clock3 },
+  { href: "/painel/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 export function PanelNav() {

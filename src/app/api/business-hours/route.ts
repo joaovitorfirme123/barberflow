@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-import { errorResponse, ok } from "@/lib/http";
+import { assertSameOrigin, errorResponse, HttpError, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { requireManager, requireUser } from "@/lib/tenant";
+import { refreshOnboardingStatus } from "@/lib/product-events";
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const hourSchema = z.object({
@@ -22,15 +23,15 @@ function minutes(value: string) {
 
 function validateHours(hours: z.infer<typeof schema>["hours"]) {
   const weekdays = new Set(hours.map((hour) => hour.weekday));
-  if (weekdays.size !== 7) throw new Error("É necessário configurar os 7 dias da semana");
+  if (weekdays.size !== 7) throw new HttpError(400, "É necessário configurar os 7 dias da semana");
 
   for (const hour of hours) {
     if (hour.closed) continue;
     if (minutes(hour.closeTime) <= minutes(hour.openTime)) {
-      throw new Error("O fechamento deve ser depois da abertura");
+      throw new HttpError(400, "O fechamento deve ser depois da abertura");
     }
     if ((hour.breakStart && !hour.breakEnd) || (!hour.breakStart && hour.breakEnd)) {
-      throw new Error("O intervalo precisa de início e fim");
+      throw new HttpError(400, "O intervalo precisa de início e fim");
     }
     if (hour.breakStart && hour.breakEnd) {
       if (
@@ -38,7 +39,7 @@ function validateHours(hours: z.infer<typeof schema>["hours"]) {
         minutes(hour.breakEnd) > minutes(hour.closeTime) ||
         minutes(hour.breakEnd) <= minutes(hour.breakStart)
       ) {
-        throw new Error("Intervalo fora do horário de funcionamento");
+        throw new HttpError(400, "Intervalo fora do horário de funcionamento");
       }
     }
   }
@@ -59,6 +60,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    assertSameOrigin(request);
     const user = await requireManager();
     const input = schema.parse(await request.json());
     validateHours(input.hours);
@@ -79,6 +81,7 @@ export async function PUT(request: Request) {
       where: { barbershopId: user.barbershopId },
       orderBy: { weekday: "asc" },
     });
+    await refreshOnboardingStatus(user.barbershopId);
     return ok({ hours });
   } catch (error) {
     return errorResponse(error);

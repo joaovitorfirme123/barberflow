@@ -1,8 +1,14 @@
 import { PrismaClient, UserRole } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const demoPassword = process.env.SEED_DEMO_PASSWORD;
+  if (!demoPassword || demoPassword.length < 8) {
+    throw new Error("SEED_DEMO_PASSWORD deve ter pelo menos 8 caracteres");
+  }
+  const passwordHash = await bcrypt.hash(demoPassword, 12);
   const barbershop = await prisma.barbershop.upsert({
     where: { slug: "barbearia-demo" },
     update: {},
@@ -13,14 +19,23 @@ async function main() {
       address: "Rua Principal, 100",
       instagram: "@barbeariademo",
       timezone: "America/Sao_Paulo",
-      users: {
-        create: {
-          name: "Dono da Barbearia Demo",
-          email: "dono@barbeariademo.local",
-          passwordHash: "seed-only-password-hash",
-          role: UserRole.OWNER,
-        },
+    },
+  });
+
+  await prisma.user.upsert({
+    where: {
+      barbershopId_email: {
+        barbershopId: barbershop.id,
+        email: "dono@barbeariademo.local",
       },
+    },
+    update: { passwordHash, active: true },
+    create: {
+      barbershopId: barbershop.id,
+      name: "Dono da Barbearia Demo",
+      email: "dono@barbeariademo.local",
+      passwordHash,
+      role: UserRole.OWNER,
     },
   });
 

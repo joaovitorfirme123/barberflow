@@ -19,8 +19,11 @@ export async function GET(request: Request) {
           : {}),
       },
       include: {
-        _count: { select: { appointments: true } },
+        _count: {
+          select: { appointments: { where: { status: "COMPLETED" } } },
+        },
         appointments: {
+          where: { status: "COMPLETED", startsAt: { lte: new Date() } },
           orderBy: { startsAt: "desc" },
           take: 20,
           include: { service: true },

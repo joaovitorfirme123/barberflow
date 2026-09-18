@@ -1,9 +1,10 @@
 import { z } from "zod";
 
-import { errorResponse, HttpError, ok } from "@/lib/http";
+import { assertSameOrigin, errorResponse, HttpError, ok } from "@/lib/http";
 import { idSchema } from "@/lib/id";
 import { prisma } from "@/lib/prisma";
 import { requireManager, requireUser } from "@/lib/tenant";
+import { refreshOnboardingStatus, trackProductEvent } from "@/lib/product-events";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -28,6 +29,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    assertSameOrigin(request);
     const user = await requireManager();
     const input = schema.parse(await request.json());
     const services = await prisma.service.findMany({
@@ -48,6 +50,8 @@ export async function POST(request: Request) {
       },
       include: { services: true },
     });
+    await trackProductEvent("PROFESSIONAL_CREATED", user.barbershopId);
+    await refreshOnboardingStatus(user.barbershopId);
     return ok({ professional }, { status: 201 });
   } catch (error) {
     return errorResponse(error);

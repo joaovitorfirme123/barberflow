@@ -20,7 +20,7 @@ describe("calculateAvailableSlots", () => {
     maxBookingDays: 60,
     appointments: [],
     blocks: [],
-    now: new Date("2026-01-14T12:00:00.000Z"),
+      now: new Date("2026-01-14T12:00:00.000Z"),
   };
 
   it("creates slots according to opening hours and duration", () => {
@@ -66,5 +66,42 @@ describe("calculateAvailableSlots", () => {
       "2026-01-15T16:00:00.000Z",
       "2026-01-15T18:00:00.000Z",
     ]);
+  });
+
+  it("removes slots that cannot fit the selected service duration", () => {
+    expect(
+      calculateAvailableSlots({
+        ...base,
+        durationMinutes: 120,
+      }),
+    ).toEqual([
+      "2026-01-15T12:00:00.000Z",
+      "2026-01-15T12:30:00.000Z",
+      "2026-01-15T13:00:00.000Z",
+      "2026-01-15T13:30:00.000Z",
+      "2026-01-15T14:00:00.000Z",
+      "2026-01-15T14:30:00.000Z",
+      "2026-01-15T15:00:00.000Z",
+      "2026-01-15T15:30:00.000Z",
+      "2026-01-15T16:00:00.000Z",
+      "2026-01-15T16:30:00.000Z",
+      "2026-01-15T17:00:00.000Z",
+    ]);
+  });
+
+  it("offers the end of an appointment as a flexible next start", () => {
+    expect(
+      calculateAvailableSlots({
+        ...base,
+        slotIntervalMinutes: 90,
+        slotMode: "FLEXIBLE",
+        appointments: [
+          {
+            startsAt: new Date("2026-01-15T16:30:00.000Z"),
+            endsAt: new Date("2026-01-15T17:15:00.000Z"),
+          },
+        ],
+      }),
+    ).toContain("2026-01-15T17:15:00.000Z");
   });
 });

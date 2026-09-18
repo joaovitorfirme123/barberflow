@@ -1,0 +1,4 @@
+CREATE TYPE "SlotMode" AS ENUM ('FIXED', 'FLEXIBLE');
+
+ALTER TABLE "barbershops"
+ADD COLUMN "slotMode" "SlotMode" NOT NULL DEFAULT 'FLEXIBLE';

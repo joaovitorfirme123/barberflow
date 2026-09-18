@@ -221,6 +221,14 @@ export default function HomePage() {
       <footer className="border-t border-line px-5 py-6 sm:px-8 lg:px-10">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 font-mono text-[9px] uppercase tracking-[.2em] text-muted-2 sm:flex-row sm:items-center sm:justify-between">
           <span>Barberflow / agenda para barbearias</span>
+          <span className="flex gap-4">
+            <Link href="/privacidade" className="hover:text-brass">
+              Privacidade
+            </Link>
+            <Link href="/termos" className="hover:text-brass">
+              Termos
+            </Link>
+          </span>
         </div>
       </footer>
     </main>

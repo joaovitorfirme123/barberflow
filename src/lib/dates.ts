@@ -1,3 +1,5 @@
+import { HttpError } from "@/lib/http";
+
 export const DEFAULT_TIMEZONE = "America/Sao_Paulo";
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -24,13 +26,13 @@ export function assertValidTimeZone(timeZone: string) {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone }).format();
   } catch {
-    throw new Error(`Timezone inválido: ${timeZone}`);
+    throw new HttpError(400, `Timezone inválido: ${timeZone}`);
   }
 }
 
 export function parseCalendarDate(value: string) {
   const match = DATE_PATTERN.exec(value);
-  if (!match) throw new Error("Data deve estar no formato YYYY-MM-DD");
+  if (!match) throw new HttpError(400, "Data deve estar no formato YYYY-MM-DD");
 
   const year = Number(match[1]);
   const month = Number(match[2]);
@@ -42,7 +44,7 @@ export function parseCalendarDate(value: string) {
     date.getUTCMonth() !== month - 1 ||
     date.getUTCDate() !== day
   ) {
-    throw new Error("Data inválida");
+    throw new HttpError(400, "Data inválida");
   }
 
   return date;
@@ -56,11 +58,11 @@ export function addCalendarDays(value: string, days: number) {
 
 export function timeToMinutes(value: string) {
   const match = TIME_PATTERN.exec(value);
-  if (!match) throw new Error("Horário deve estar no formato HH:mm");
+  if (!match) throw new HttpError(400, "Horário deve estar no formato HH:mm");
 
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) throw new Error("Horário inválido");
+  if (hours > 23 || minutes > 59) throw new HttpError(400, "Horário inválido");
 
   return hours * 60 + minutes;
 }
@@ -79,10 +81,33 @@ export function localDateTimeToUtc(date: string, time: string, timeZone: string)
   assertValidTimeZone(timeZone);
 
   const localAsUtc = new Date(`${date}T${time}:00.000Z`);
-  const firstGuess = new Date(localAsUtc.getTime() - timeZoneOffset(localAsUtc, timeZone));
-  const finalGuess = new Date(localAsUtc.getTime() - timeZoneOffset(firstGuess, timeZone));
+  const offsets = new Set([
+    timeZoneOffset(new Date(localAsUtc.getTime() - 36 * 60 * 60_000), timeZone),
+    timeZoneOffset(localAsUtc, timeZone),
+    timeZoneOffset(new Date(localAsUtc.getTime() + 36 * 60 * 60_000), timeZone),
+  ]);
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const candidates = [...offsets]
+    .map((offset) => new Date(localAsUtc.getTime() - offset))
+    .filter((candidate) => {
+      const parts = timeZoneParts(candidate, timeZone);
+      return (
+        parts.year === year &&
+        parts.month === month &&
+        parts.day === day &&
+        parts.hour === hour &&
+        parts.minute === minute
+      );
+    });
 
-  return finalGuess;
+  if (candidates.length === 0) {
+    throw new HttpError(400, "Esse horário local não existe devido à mudança de fuso horário.");
+  }
+  if (candidates.length > 1) {
+    throw new HttpError(400, "Esse horário local é ambíguo devido à mudança de fuso horário.");
+  }
+  return candidates[0];
 }
 
 export function formatInTimeZone(date: Date, timeZone: string) {

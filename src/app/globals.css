@@ -23,7 +23,7 @@
   --line: #3a342c;
   --cream: #f2ece1;
   --muted: #b8ae9c;
-  --muted-2: #7a7266;
+  --muted-2: #978e80;
   --brass: #c99a54;
   --red: #9b3b32;
   --teal: #35525c;
@@ -46,7 +46,9 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -57,6 +59,11 @@ button {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
 }
 
 ::selection {

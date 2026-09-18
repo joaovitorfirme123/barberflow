@@ -1,9 +1,10 @@
 import { z } from "zod";
 
-import { errorResponse, HttpError, ok } from "@/lib/http";
+import { assertSameOrigin, errorResponse, HttpError, ok } from "@/lib/http";
 import { idSchema } from "@/lib/id";
 import { prisma } from "@/lib/prisma";
 import { requireManager } from "@/lib/tenant";
+import { refreshOnboardingStatus } from "@/lib/product-events";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(100).optional(),
@@ -14,6 +15,7 @@ const schema = z.object({
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    assertSameOrigin(request);
     const user = await requireManager();
     const { id } = await params;
     const input = schema.parse(await request.json());
@@ -44,6 +46,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         });
       }
     });
+    await refreshOnboardingStatus(user.barbershopId);
 
     return ok({ success: true });
   } catch (error) {
@@ -51,8 +54,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    assertSameOrigin(request);
     const user = await requireManager();
     const { id } = await params;
     const result = await prisma.professional.updateMany({

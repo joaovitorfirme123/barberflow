@@ -1,10 +1,13 @@
+import { HttpError } from "@/lib/http";
+
 export function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, "");
-  if (digits.length < 10 || digits.length > 15) {
-    throw new Error("Telefone inválido");
+  const normalized = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
+  if (!normalized.startsWith("55") || normalized.length < 12 || normalized.length > 13) {
+    throw new HttpError(400, "Telefone inválido");
   }
 
-  return digits;
+  return normalized;
 }
 
 export function whatsappLink(phone: string, message: string) {
